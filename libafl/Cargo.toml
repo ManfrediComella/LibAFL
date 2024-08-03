@@ -197,6 +197,8 @@ serial_test = { version = "3", optional = true, default-features = false, featur
 document-features = { version = "0.2", optional = true }
 # Optional
 clap = {version = "4.5", optional = true}
+burn = { version = "0.13.2", features = ["wgpu"] }
+rand = "0.8.5"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2" # For (*nix) libc

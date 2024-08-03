@@ -1,7 +1,7 @@
 //! [`Mutator`]`s` mutate input during fuzzing. These can be used standalone or in combination with other mutators to explore the input space more effectively.
 //! You can read more about mutators in the [libAFL book](https://aflplus.plus/libafl-book/core_concepts/mutator.html)
 pub mod scheduled;
-use core::fmt;
+use core::fmt::{self, Debug};
 
 pub use scheduled::*;
 pub mod mutations;
@@ -19,6 +19,9 @@ pub mod grimoire;
 pub use grimoire::*;
 pub mod tuneable;
 pub use tuneable::*;
+pub mod positional_mutations;
+pub mod ppo_model;
+pub mod positional_ppo_mutator;
 
 #[cfg(feature = "unicode")]
 pub mod unicode;
@@ -92,6 +95,20 @@ pub enum MutationResult {
 pub trait Mutator<I, S>: Named {
     /// Mutate a given input
     fn mutate(&mut self, state: &mut S, input: &mut I) -> Result<MutationResult, Error>;
+
+    /// Post-process given the outcome of the execution
+    /// `new_corpus_id` will be `Some` if a new [`crate::corpus::Testcase`] was created this execution.
+    #[inline]
+    fn post_exec(&mut self, _state: &mut S, _new_corpus_id: Option<CorpusId>) -> Result<(), Error> {
+        Ok(())
+    }
+}
+
+/// A ['PosMutator`] is a mutator that mutates the input at a precise position.
+/// The position of the next mutation is passed as a parameter to the 'mutate()' function,
+pub trait PosMutator<I, S>: Named + Debug {
+    /// Mutate a given input
+    fn mutate(&mut self, state: &mut S, input: &mut I, pos: usize) -> Result<MutationResult, Error>;
 
     /// Post-process given the outcome of the execution
     /// `new_corpus_id` will be `Some` if a new [`crate::corpus::Testcase`] was created this execution.
@@ -401,6 +418,36 @@ impl<I, S> MutatorsTuple<I, S> for Vec<Box<dyn Mutator<I, S>>> {
 impl<I, S> IntoVec<Box<dyn Mutator<I, S>>> for Vec<Box<dyn Mutator<I, S>>> {
     fn into_vec(self) -> Vec<Box<dyn Mutator<I, S>>> {
         self
+    }
+}
+
+/// implement IntoVec for a tuple list of ['PosMutator']'s 
+impl<Head, Tail, I, S> IntoVec<Box<dyn PosMutator<I, S>>> for (Head, Tail)
+where
+    Head: PosMutator<I, S> + 'static,
+    Tail: IntoVec<Box<dyn PosMutator<I, S>>>,
+{
+    fn into_vec_reversed(self) -> Vec<Box<dyn PosMutator<I, S>>> {
+        let (head, tail) = self.uncons();
+        let mut ret = tail.into_vec_reversed();
+        ret.push(Box::new(head));
+        ret
+    }
+
+    fn into_vec(self) -> Vec<Box<dyn PosMutator<I, S>>> {
+        let mut ret = self.into_vec_reversed();
+        ret.reverse();
+        ret
+    }
+}
+
+/// implement IntoVec for a tuple list of ['PosMutator']'s, last element conversion
+impl<Tail, I, S> IntoVec<Box<dyn PosMutator<I, S>>> for (Tail,)
+where
+    Tail: IntoVec<Box<dyn PosMutator<I, S>>>,
+{
+    fn into_vec(self) -> Vec<Box<dyn PosMutator<I, S>>> {
+        self.0.into_vec()
     }
 }
 

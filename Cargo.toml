@@ -15,6 +15,7 @@ members = [
     "utils/gramatron/construct_automata",
     "utils/desyscall",
     "utils/multi_machine_generator",
+    "fuzzers/baby_fuzzer"
 ]
 default-members = [
     "libafl",

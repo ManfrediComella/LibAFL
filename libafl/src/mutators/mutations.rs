@@ -501,7 +501,8 @@ where
             return Ok(MutationResult::Skipped);
         }
 
-        let range = rand_range(state, size, min(16, max_size - size));
+        let range = rand_range(state, size, min
+            (16, max_size - size));
 
         input.resize(size + range.len(), 0);
         unsafe {
@@ -601,7 +602,7 @@ where
         if size >= max_size {
             return Ok(MutationResult::Skipped);
         }
-
+        // amount of bytes to insert (1 to 16)
         let mut amount = 1 + state.rand_mut().below(16);
         let offset = state.rand_mut().below(size + 1);
 
